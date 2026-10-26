@@ -1,0 +1,12 @@
+
+{
+  "name": "StickRush Arena",
+  "short_name": "StickRush",
+  "description": "A free-to-play racing game using virtual points.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#101027",
+  "theme_color": "#6c3cff"
+}

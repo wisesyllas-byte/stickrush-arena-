@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#160033">
+<meta name="description" content="StickRush Arena — free-to-play arcade racing with virtual points.">
+<link rel="manifest" href="manifest.json">
+<title>StickRush Arena</title>
+<style>
+:root{color-scheme:dark;--purple:#c084fc;--violet:#8b5cf6;--yellow:#facc15;--panel:#1d293b}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;padding:16px;color:#fff;font-family:system-ui,Arial,sans-serif;background:radial-gradient(circle at top right,#6d28d9 0,#25104d 35%,#101827 78%);padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+main{max-width:680px;margin:auto}
+header{padding:8px 2px 14px}
+h1{margin:0;color:var(--purple);font-size:clamp(28px,7vw,40px);text-shadow:0 0 16px #8b5cf688}
+.sub{margin:5px 0;color:#ddd6fe}
+.panel{background:#1d293bee;border:1px solid #8b5cf6;border-radius:20px;padding:16px;margin:14px 0;box-shadow:0 10px 28px #0003}
+h2,h3{margin:0 0 12px;color:var(--purple)}
+.balance{font-size:30px;font-weight:800;color:var(--purple);text-shadow:0 0 12px #8b5cf688}
+.small{font-size:13px;color:#cbd5e1}
+.track{position:relative;overflow:hidden;background:#172554;border:3px solid #94a3b8;border-radius:14px;padding:7px;background-image:repeating-linear-gradient(90deg,transparent 0 27px,#ffffff12 27px 29px)}
+.lane{height:62px;position:relative;overflow:hidden;border-bottom:2px dashed #cbd5e188}
+.lane:last-child{border-bottom:0}
+.racer{position:absolute;left:0;top:7px;font-size:35px;filter:drop-shadow(0 0 6px #45f5a1);transform:scaleX(-1)}
+.finish{position:absolute;right:5px;top:0;height:100%;width:8px;background:repeating-linear-gradient(0deg,#fff 0 8px,#111 8px 16px)}
+#result{margin-top:12px;padding:13px;border-radius:12px;text-align:center;background:#101827;color:var(--yellow);font-weight:750;min-height:46px}
+label{display:block;margin:12px 0 6px;font-weight:600}
+select,input,button{width:100%;padding:13px;border-radius:12px;font-size:16px}
+select,input{background:#101827;color:#fff;border:1px solid #8b5cf6}
+button{margin-top:10px;border:0;background:var(--yellow);color:#201600;font-weight:800;box-shadow:0 0 14px #8b5cf644;cursor:pointer}
+button:disabled{opacity:.6}
+.secondary{background:#c084fc;color:#201038}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#leaderboard{padding-left:24px;line-height:1.9;overflow-wrap:anywhere}
+.settings{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.toggle{width:auto;margin:0;accent-color:#c084fc}
+footer{text-align:center;color:#ddd6fe;font-size:12px;padding:10px}
+</style>
+</head>
+<body>
+<main>
+<header><h1>🏁 StickRush Arena</h1><p class="sub">Pick your racer. Feel the speed. Chase the top spot.</p></header>
+<section class="panel">
+<h2>💎 Your Virtual Points</h2><div class="balance" id="points">1,000</div>
+<p class="small">Free-to-play only. Virtual points have no cash value and cannot be redeemed.</p>
+</section>
+<section class="panel">
+<h2>🏎️ The Arena</h2>
+<div class="track" id="track">
+<div class="lane"><span class="racer" id="racer0">🏎️</span></div>
+<div class="lane"><span class="racer" id="racer1">🚗</span></div>
+<div class="lane"><span class="racer" id="racer2">🏎️</span></div>
+<div class="lane"><span class="racer" id="racer3">🚙</span></div>
+<div class="finish" aria-label="Finish line"></div>
+</div>
+<div id="result" role="status" aria-live="polite">Ready to race!</div>
+</section>
+<section class="panel">
+<h2>🎯 Race Setup</h2>
+<label for="prediction">Predict the winner</label>
+<select id="prediction"><option value="0">Racer 1 🏎️</option><option value="1">Racer 2 🚗</option><option value="2">Racer 3 🏎️</option><option value="3">Racer 4 🚙</option></select>
+<label for="stake">Virtual points to use</label>
+<input id="stake" type="number" min="1" step="1" value="10" inputmode="numeric">
+<div class="row"><button id="raceButton">🏁 Start Race</button><button id="resetButton" class="secondary">Reset Track</button></div>
+<div class="settings" style="margin-top:14px"><label for="soundToggle" style="margin:0">🔊 Race sounds</label><input id="soundToggle" class="toggle" type="checkbox" checked></div>
+<p class="small">Sound starts after you tap Start Race. Correct predictions earn the same amount of virtual points you selected; incorrect predictions use that amount.</p>
+</section>
+<section class="panel"><h3>🏆 Leaderboard</h3><ol id="leaderboard"></ol></section>
+<footer>StickRush Arena • Virtual points only • Play for fun</footer>
+</main>
+<script>
+"use strict";
+// Keep the original storage keys so existing balances and leaderboard data can be reused.
+const POINTS_KEY="sra_points", BOARD_KEY="sra_board";
+let points=loadPoints(), racing=false, audioContext=null, soundEnabled=true, animationId=null;
+const $=id=>document.getElementById(id);
+function loadPoints(){const saved=localStorage.getItem(POINTS_KEY);if(saved===null){localStorage.setItem(POINTS_KEY,"1000");return 1000;}const n=Number(saved);return Number.isFinite(n)&&n>=0?n:1000;}
+function savePoints(){localStorage.setItem(POINTS_KEY,String(points));$("points").textContent=Math.floor(points).toLocaleString();}
+function loadBoard(){try{const v=JSON.parse(localStorage.getItem(BOARD_KEY)||"[]");return Array.isArray(v)?v:[];}catch(e){return [];}}
+function scoreOf(x){if(typeof x==="number")return x;if(typeof x==="string")return Number(x)||0;return x&&typeof x==="object"?Number(x.score??x.points??0)||0:0;}
+function showBoard(){const list=$("leaderboard");list.replaceChildren();const board=loadBoard();if(!board.length){const li=document.createElement("li");li.textContent="Your race results will appear here.";list.append(li);return;}board.slice(0,10).forEach(entry=>{const li=document.createElement("li");li.textContent=(entry&&typeof entry==="object"?(entry.name||"You"):"You")+" — "+scoreOf(entry).toLocaleString()+" points";list.append(li);});}
+function saveResult(winner,correct,stake){const board=loadBoard();board.push({name:"You",score:Math.floor(points),winner:winner+1,correct,stake,date:new Date().toLocaleDateString()});board.sort((a,b)=>scoreOf(b)-scoreOf(a));localStorage.setItem(BOARD_KEY,JSON.stringify(board.slice(0,10)));showBoard();}
+function beep(freq=440,duration=.18,wave="sine",volume=.06){if(!soundEnabled)return;try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;if(!audioContext)audioContext=new AC();if(audioContext.state==="suspended")audioContext.resume();const osc=audioContext.createOscillator(),gain=audioContext.createGain(),now=audioContext.currentTime;osc.type=wave;osc.frequency.setValueAtTime(freq,now);osc.frequency.exponentialRampToValueAtTime(Math.max(70,freq*.65),now+duration);gain.gain.setValueAtTime(volume,now);gain.gain.exponentialRampToValueAtTime(.001,now+duration);osc.connect(gain);gain.connect(audioContext.destination);osc.start(now);osc.stop(now+duration);}catch(e){}}
+function playFinish(correct){beep(correct?880:300,.35,"triangle",.09);if(correct)setTimeout(()=>beep(1100,.28,"triangle",.07),150);}
+function resetTrack(){if(racing)return;for(let i=0;i<4;i++)$("racer"+i).style.left="0%";$("result").textContent="Ready to race!";}
+function startRace(){if(racing)return;const prediction=Number($("prediction").value),stake=Number($("stake").value);if(!Number.isInteger(stake)||stake<1){$("result").textContent="Enter a whole number of virtual points.";return;}if(stake>points){$("result").textContent="Not enough virtual points for that amount.";return;}
+racing=true;$("raceButton").disabled=true;$("resetButton").disabled=true;for(let i=0;i<4;i++)$("racer"+i).style.left="0%";$("result").textContent="🏁 Ready...";beep(180,.25,"sawtooth",.045);
+const progress=[0,0,0,0];let last=performance.now();
+function frame(now){if(!racing)return;const elapsed=Math.min(40,now-last);last=now;for(let i=0;i<4;i++){progress[i]+=((Math.random()*1.7)+.45)*(elapsed/16.7);$("racer"+i).style.left=Math.min(progress[i],90)+"%";}const winner=progress.findIndex(v=>v>=100);if(winner!==-1){finishRace(winner,prediction,stake);return;}animationId=requestAnimationFrame(frame);}animationId=requestAnimationFrame(frame);}
+function finishRace(winner,prediction,stake){racing=false;const correct=winner===prediction;if(correct){points+=stake;$("result").textContent="🎉 Racer "+(winner+1)+" wins! +"+stake+" virtual points!";}else{points-=stake;$("result").textContent="🏁 Racer "+(winner+1)+" wins. Try another prediction!";}savePoints();saveResult(winner,correct,stake);playFinish(correct);$("raceButton").disabled=false;$("resetButton").disabled=false;}
+$("raceButton").addEventListener("click",startRace);$("resetButton").addEventListener("click",resetTrack);$("soundToggle").addEventListener("change",e=>{soundEnabled=e.target.checked;if(soundEnabled)beep(660,.12,"sine",.05);});
+if("serviceWorker" in navigator && location.protocol.startsWith("http")){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}
+savePoints();showBoard();
+</script>
+</body>
+</html>

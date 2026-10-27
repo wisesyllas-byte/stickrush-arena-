@@ -97,7 +97,9 @@ function startRace(){if(racing)return;const prediction=Number($("prediction").va
 racing=true;$("raceButton").disabled=true;$("resetButton").disabled=true;for(let i=0;i<4;i++)$("racer"+i).style.left="0%";$("result").textContent="🏁 Ready...";beep(180,.25,"sawtooth",.045);
 const progress=[0,0,0,0];let last=performance.now();
 const obstacle=$("obstacle");let obstaclePosition=50;
-function frame(now){if(!racing)return;const elapsed=Math.min(40,now-last);last=now;for(let i=0;i<4;i++){progress[i]+=((Math.random()*.25)+.08)*(elapsed/16.7);$("racer"+i).style.left=Math.min(progress[i],90)+"%";}const winner=progress.findIndex(v=>v>=100);if(winner!==-1){finishRace(winner,prediction,stake);return;}animationId=requestAnimationFrame(frame);}animationId=requestAnimationFrame(frame);}
+function frame(now){if(!racing)return;const elapsed=Math.min(40,now-last);last=nowobstaclePosition-=0.8;
+if(obstaclePosition<0)obstaclePosition=100;
+obstacle.style.left=obstaclePosition+"%";;for(let i=0;i<4;i++){progress[i]+=((Math.random()*.25)+.08)*(elapsed/16.7);$("racer"+i).style.left=Math.min(progress[i],90)+"%";}const winner=progress.findIndex(v=>v>=100);if(winner!==-1){finishRace(winner,prediction,stake);return;}animationId=requestAnimationFrame(frame);}animationId=requestAnimationFrame(frame);}
 function finishRace(winner,prediction,stake){racing=false;const correct=winner===prediction;if(correct){points+=stake;$("result").textContent="🎉 Racer "+(winner+1)+" wins! +"+stake+" virtual points!";}else{points-=stake;$("result").textContent="🏁 Racer "+(winner+1)+" wins. Try another prediction!";}savePoints();saveResult(winner,correct,stake);playFinish(correct);$("raceButton").disabled=false;$("resetButton").disabled=false;}
 $("raceButton").addEventListener("click",startRace);$("resetButton").addEventListener("click",resetTrack);$("soundToggle").addEventListener("change",e=>{soundEnabled=e.target.checked;if(soundEnabled)beep(660,.12,"sine",.05);});
 if("serviceWorker" in navigator && location.protocol.startsWith("http")){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}
